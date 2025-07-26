@@ -23,7 +23,10 @@ class juego:
         return False
     def sig_preg(self):
         self.preg_actual_indice +=1
-        if self.preg_actual_indice >= len(self.indices_disponibles)
+        if self.preg_actual_indice >= len(self.indices_disponibles):
+            self.terminado = True
+
+
 
 class App:
     def __init__(self, trivia):
