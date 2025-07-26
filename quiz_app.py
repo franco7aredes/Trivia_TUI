@@ -1,5 +1,6 @@
 import urwid
 import logic
+import database
 
 def show_main_menu():
     """crea y muestra el menu principal del juego"""
