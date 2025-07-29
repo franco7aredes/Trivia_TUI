@@ -11,7 +11,7 @@ class Trivia:
         self.show_main_menu()
 
     def start_game(self, button = None):
-        game_instance = logic.TriviaGame(self.main_loop, self.return_to_menu)
+        game_instance = logic.App(self.database, self.main_loop, self.return_to_menu)
         self.set_view(game_instance.get_widget(), game_instance.unhandled_input)
 
     def return_to_menu(self):
@@ -35,26 +35,31 @@ class Trivia:
         urwid.connect_signal(add_question_button, 'click',self.add_question_form)
         exit_button = urwid.Button('Salir')
         urwid.connect_signal(exit_button, 'click', self.exit_program)
-        # Agrupa los widgets en una lista
+        # Agrupa los widgets en una pila
         pile_content = urwid.Pile([
-            text_header,
+            urwid.AttrMap(text_header, 'header'),
             urwid.Divider(),
-            urwid.Padding(play_button, left=2, right=2, width=('relative', 80)),
-            urwid.Padding(add_question_button, left=2, right=2, width=('relative', 80)),
-            urwid.Padding(exit_button, left=2, right=2, width=('relative', 80)),
+            urwid.AttrMap(urwid.Padding(play_button, left=2, right=2, width=('relative', 80)), 'menu_item', 'focus menu_item'),
+            urwid.AttrMap(urwid.Padding(add_question_button, left=2, right=2, width=('relative', 80)), 'menu_item', 'focus menu_item'),
+            urwid.AttrMap(urwid.Padding(exit_button, left=2, right=2, width=('relative', 80)), 'menu_item', 'focus menu_item'),
             ])
         # Crea la vista que mostrará los widgets
         # urwid.ListBox permite scroll si el contenido es grande 
         # urwid.Filler centra verticalmente
-        # urwid.Frame permite canecera, pie de pagina y cuerpo
-        list_walker = urwid.SimpleListWalker([pile_content])
-        list_box = urwid.ListBox(list_walker)
+        # urwid.Frame permite cabecera, pie de pagina y cuerpo
+        body_widget = urwid.Filler(pile_content, valign='middle')
+        #list_walker = urwid.SimpleListWalker([pile_content])
+        #list_box = urwid.ListBox(list_walker)
         # Añade padding para que no ocupe todo el ancho
-        menu_frame = urwid.Frame(body=list_box)
-        padding = urwid.Padding(menu_frame, align='center', width=('relative', 80))
+        menu_frame = urwid.Frame(
+            body=body_widget,
+            header=urwid.AttrMap(urwid.Text("menu principal", align='center'), 'header'),
+            footer=urwid.AttrMap(urwid.Text("te mueves con las flechas", align='center'), 'footer')
+        )
+        #padding = urwid.Padding(menu_frame, align='center', width=('relative', 80))
         # background = urwid.Overlay(padding, urwid.SolidFill(), 'center', ('relative', 80)
-        self.current_view = urwid.Filler(padding, valign='middle')
-        self.set_view(self.current_view, self.unhandled_input_default)
+        #self.current_view = urwid.Filler(padding, valign='middle')
+        self.set_view(menu_frame, self.unhandled_input_default)
 
     def set_view(self, new_widget, unhandled_input_handler=None):
         if self.main_loop:

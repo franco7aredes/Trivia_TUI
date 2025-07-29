@@ -2,7 +2,8 @@
 import random
 import urwid
 
-class juego:
+class Juego:
+
     def __init__ (self, preguntas):
         self.preguntas = preguntas
         self.puntuacion = 0
@@ -10,34 +11,38 @@ class juego:
         self.terminado = False
         self.indices_disponibles = list(range(len(preguntas)))
         random.shuffle(self.indices_disponibles)
+
     def obtener_preg_actual(self):
         if self.preg_actual_indice < len(self.indices_disponibles):
             indice_real = self.indices_disponibles[self.preg_actual_indice]
             return self.preguntas[indice_real]
         return None
+
     def verificar_resp(self, resp_selec):
         pregunta = self.obtener_preg_actual()
         if pregunta and resp_selec == pregunta["respuesta_correcta"]:
             self.puntuacion +=1
             return True
         return False
+
     def sig_preg(self):
         self.preg_actual_indice +=1
         if self.preg_actual_indice >= len(self.indices_disponibles):
             self.terminado = True
 
-
-
 class App:
-    def __init__(self, trivia):
-        self.juego = trivia
-        self.loop = None
+
+    def __init__(self, db, game_loop, return_to_menu_callback):
+        self.juego = Juego(db)
+        self.loop = game_loop
+        self.return_to_menu_callback = return_to_menu_callback
         self.widget_preg = urwid.Text("")
         self.widget_opc = urwid.Pile([])
         self.widget_mensaje = urwid.Text("")
         self.widget_puntuacion = urwid.Text("")
         self.main_widget = self._crear_interfaz_principal()
         self.actualizar_interfaz()
+
     def _crear_interfaz_principal(self):
         # Unir todos los elementos en un layout
         return urwid.Frame(
@@ -53,14 +58,33 @@ class App:
             header=urwid.Text("ya tu sabe, mi loco", align="center"),
             footer=urwid.Text("Presiona q para salir", align="center")
         )
+
     def actualizar_interfaz(self):
+        self.widget_mensaje.set_text("")
         if self.juego.juego_terminado:
             self.widget_preg.set_text("y se terminó")
             self.widget_opc.contents = []
-            self.widget_opciones.set_text("Gracias totales")
+            self.widget_opc.set_text("Gracias totales")
             self.widget_puntuacion.set_text(f"Puntuacion final: {self.juego.puntuacion}")
+            return_button = urwid.Button("Volver al menu")
+            urwid.connect_signal(return_button, 'click', self.return_to_menu_callback)
+            self.widget_opc.contents.append((urwid.AttrMap(return_button, 'button', 'focus button'), ('pack', None)))
         else:
-            pass
+            pregunta_actual = self.obtener_preg_actual()
+            if pregunta_actual:
+                self.widget_preg.set_text(("question", pregunta_actual['pregunta']))
+                self.widget_puntuacion.set_text(("status",f"Puntuacion: {self.juego.puntuacion} / {self.juego.preg_actual_indice + 1}"))
+                opciones_widgets = []
+                opciones_mezcladas = random.sample(pregunta_actual['opciones'], len(pregunta_actual['opciones']))
+                for opcion in opciones_mezcladas:
+                    button = urwid.Button(opcion)
+                    urwid.connect_signal(button, 'click', self.manejar_respuesta, opcion)
+                    opciones_widgets.append((urwid.AttrMap(button, 'button', 'focus button'),('pack', None)))
+                self.widget_opc.contents = opciones_widgets
+            else:
+                self.juego.terminado = True
+                self.actualizar_interfaz()
+
     def manejar_respuesta(self,button, res_selec):
         es_correcta = self.juego.verificar_resp(res_selec)
         if es_correcta:
@@ -71,13 +95,21 @@ class App:
         # se puede esperar un tiempo, o pedirle al usuario que toque una tecla.
         # se decide de que el usuario espere xq es loco
         self.loop.set_alarm_in(1.5, self.continuar_juego) # espera 1.5 seg
+
     def continuar_juego(self, loop, data):
         self.juego.sig_preg()
         self.actualizar_interfaz()
-        self.loop.draw_screen() # actualiza pantalla
+
     def unhandled_input(self, key):
         if key in ('q','Q'):
-            raise urwid.ExitMainLoop()
+            if self.juego.terminado:
+                self.return_to_menu_callback()
+            else:
+                raise urwid.ExitMainLoop()
+
     def run(self):
         self.loop = urwid.MainLoop(self.main_widget, unhandled_input=self.unhandled_input)
         self.loop.run()
+
+    def get_widget(self):
+        return self.main_widget
