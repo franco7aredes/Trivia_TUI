@@ -111,5 +111,75 @@ class App:
         self.loop = urwid.MainLoop(self.main_widget, unhandled_input=self.unhandled_input)
         self.loop.run()
 
+class AddQuestionForm:
+    """
+    gestiona la interfaz para agregar nuevas preguntas a la db
+    """
+
+    def __init__(self, db_instance, return_to_menu_callback):
+        self.db = db_instance
+        self.return_to_menu_callback = return_to_menu_callback
+        # campos de entrada de texto
+        # edit_text es la opcion que se muestra por defecto
+        self.edit_question = urwid.Edit(edit_text="Escribe tu pregunta Aqui: ")
+        self.edit_correct = urwid.Edit(edit_text="Respuesta correcta: ")
+        self.edit_option2 = urwid.Edit(edit_text="Opcion incorrecta 1: ")
+        self.edit_option3 = urwid.Edit(edit_text="Opcion incorrecta 2: ")
+        self.edit_option4 = urwid.Edit(edit_text="Opcion incorrecta 3: ")
+        # botones
+        self.save_button = urwid.Button("Guardar")
+        urwid.connect_signal(self.save_button, 'click', self._save_question)
+        self.cancel_button = urwid.Button("Cancelar")
+        urwid.connect_signal(self.cancel_button, 'click', self.return_to_menu_callback)
+        self.message_widget = urwid.Text("", align='center')
+        # Organizar los widgets en un pile
+        pile = urwid.Pile([
+            urwid.AttrMap(urwid.Text("---Agregar nueva pregunta---", align='center'), 'header'),
+            urwid.Divider(),
+            urwid.AttrMap(self.edit_question, 'edit_field', 'focus edit_field'),
+            urwid.AttrMap(self.edit_correct, 'edit_field', 'focus edit_field'),
+            urwid.AttrMap(self.edit_option2, 'edit_field', 'focus edit_field'),
+            urwid.AttrMap(self.edit_option3, 'edit_field', 'focus edit_field'),
+            urwid.AttrMap(self.edit_option4, 'edit_field', 'focus edit_field'),
+            urwid.Divider(),
+            urwid.AttrMap(self.save_button, 'button', 'focus button'),
+            urwid.AttrMap(self.cancel_button, 'button', 'focus button'),
+            ("fixed", 1,self.message_widget),
+        ])
+        # Centrar el contenido y crear el Frame principal para la vista
+        body_widget = urwid.Filler(pile, valign='middle')
+        self.main_widget = urwid.Frame(
+            body=urwid.Padding(body_widget, left=2, right=2, width=('relative', 80)),
+            header=urwid.AttrMap(urwid.Text("Formulario de preguntas", align='center'), 'header'),
+            footer=urwid.AttrMap(urwid.Text("Completa y  guarda, loco", align='center'),'footer')
+        )
+
+    def _save_question(self, button):
+        question_text = self.edit_question.edit_text.strip()
+        correct_answer = self.edit_correct.edit_text.strip()
+        option2 = self.edit_option2.edit_text.strip()
+        option3 = self.edit_option3.edit_text.strip()
+        option4 = self.edit_option4.edit_text.strip()
+        # chequeo basico para no romperme la base
+        if not correct_answer or not option2 or not option3 or not option4 or not question_text:
+            self.message_widget.set_text(("Error: todos los campos son obligatorios"))
+            return
+        # elimino duplicados
+        options = [correct_answer, option2, option3, option4]
+        if len(set(options)) < len(options):
+            self.message_widget.set_text(("Error: todas las opciones tienen que ser distintas"))
+            return
+        try:
+            self.db.add_question(question_text, correct_answer, option2, option3, option4, correct_answer)
+            self.message_widget.set_text(("Pregunta guardada con exito"))
+            # mover el foco al primer campo despues de guardiar
+            self.main_widget.body.original_widget.set_focus(self.edit_question)
+        except Exception as e:
+            self.message_widget.set_text(("Error",f"Error al guardar: {e}"))
+    
+    def unhandled_input(self, key):
+        # le puedo poner que pase algo con alguna tecla en particular, la dejo que haga nada
+        return False
+
     def get_widget(self):
         return self.main_widget

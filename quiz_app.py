@@ -7,7 +7,6 @@ class Trivia:
         self.database = database.TriviaDatabase()
         self.current_view = None
         self.main_loop = None
-        self.database._create_table()
         self.show_main_menu()
 
     def start_game(self, button = None):
@@ -86,8 +85,8 @@ class Trivia:
 	    self.main_loop.run()
 
     def add_question_form(self, button = None):
-        form_instance = logic.AddQuestionForm(self.main_loop, self.return_to_menu)
-        self.set_view(form_instance.get_widget(), form_instance.unhandled_input)
+        form_instance = logic.AddQuestionForm(self.database, self.return_to_menu)
+        self.set_view(form_instance.get_widget(), form_instance)
 
 if __name__ == "__main__":
     app = Trivia()
