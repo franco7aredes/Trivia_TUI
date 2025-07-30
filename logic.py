@@ -32,8 +32,8 @@ class Juego:
 
 class App:
 
-    def __init__(self, db, game_loop, return_to_menu_callback):
-        self.juego = Juego(db)
+    def __init__(self, preguntas, game_loop, return_to_menu_callback):
+        self.juego = Juego(preguntas)
         self.loop = game_loop
         self.return_to_menu_callback = return_to_menu_callback
         self.widget_preg = urwid.Text("")
@@ -61,16 +61,16 @@ class App:
 
     def actualizar_interfaz(self):
         self.widget_mensaje.set_text("")
-        if self.juego.juego_terminado:
+        if self.juego.terminado:
             self.widget_preg.set_text("y se terminó")
             self.widget_opc.contents = []
-            self.widget_opc.set_text("Gracias totales")
+            self.widget_opc.contents.append((urwid.Text("Gracias totales", align='center'), ('pack',None)))
             self.widget_puntuacion.set_text(f"Puntuacion final: {self.juego.puntuacion}")
             return_button = urwid.Button("Volver al menu")
             urwid.connect_signal(return_button, 'click', self.return_to_menu_callback)
             self.widget_opc.contents.append((urwid.AttrMap(return_button, 'button', 'focus button'), ('pack', None)))
         else:
-            pregunta_actual = self.obtener_preg_actual()
+            pregunta_actual = self.juego.obtener_preg_actual()
             if pregunta_actual:
                 self.widget_preg.set_text(("question", pregunta_actual['pregunta']))
                 self.widget_puntuacion.set_text(("status",f"Puntuacion: {self.juego.puntuacion} / {self.juego.preg_actual_indice + 1}"))
@@ -91,7 +91,7 @@ class App:
             self.widget_mensaje.set_text("Bien, loco")
         else:
             preg_actual = self.juego.obtener_preg_actual()
-            self.widget_mensaje.set_text("moqueaste. La Respuesta era {preg_actual['respuesta_correcta']}")
+            self.widget_mensaje.set_text(f"moqueaste. La Respuesta era {preg_actual['respuesta_correcta']}")
         # se puede esperar un tiempo, o pedirle al usuario que toque una tecla.
         # se decide de que el usuario espere xq es loco
         self.loop.set_alarm_in(1.5, self.continuar_juego) # espera 1.5 seg
@@ -102,10 +102,9 @@ class App:
 
     def unhandled_input(self, key):
         if key in ('q','Q'):
-            if self.juego.terminado:
-                self.return_to_menu_callback()
-            else:
-                raise urwid.ExitMainLoop()
+            self.return_to_menu_callback()
+            return True
+        return False
 
     def run(self):
         self.loop = urwid.MainLoop(self.main_widget, unhandled_input=self.unhandled_input)
@@ -122,15 +121,15 @@ class AddQuestionForm:
         # campos de entrada de texto
         # edit_text es la opcion que se muestra por defecto
         self.edit_question = urwid.Edit(edit_text="Escribe tu pregunta Aqui: ")
-        self.edit_correct = urwid.Edit(edit_text="Respuesta correcta: ")
-        self.edit_option2 = urwid.Edit(edit_text="Opcion incorrecta 1: ")
-        self.edit_option3 = urwid.Edit(edit_text="Opcion incorrecta 2: ")
-        self.edit_option4 = urwid.Edit(edit_text="Opcion incorrecta 3: ")
+        self.edit_correct = urwid.Edit("Respuesta correcta: ")
+        self.edit_option2 = urwid.Edit("Opcion incorrecta 1: ")
+        self.edit_option3 = urwid.Edit("Opcion incorrecta 2: ")
+        self.edit_option4 = urwid.Edit("Opcion incorrecta 3: ")
         # botones
         self.save_button = urwid.Button("Guardar")
         urwid.connect_signal(self.save_button, 'click', self._save_question)
         self.cancel_button = urwid.Button("Cancelar")
-        urwid.connect_signal(self.cancel_button, 'click', lambda button: self.return_to_menu_callback)
+        urwid.connect_signal(self.cancel_button, 'click', lambda button: self.return_to_menu_callback())
         self.message_widget = urwid.Text("", align='center')
         # Organizar los widgets en un pile
         pile = urwid.Pile([
@@ -141,6 +140,7 @@ class AddQuestionForm:
             urwid.AttrMap(self.edit_option2, 'edit_field', 'focus edit_field'),
             urwid.AttrMap(self.edit_option3, 'edit_field', 'focus edit_field'),
             urwid.AttrMap(self.edit_option4, 'edit_field', 'focus edit_field'),
+            self.message_widget,
             urwid.Divider(),
             urwid.AttrMap(self.save_button, 'button', 'focus button'),
             urwid.AttrMap(self.cancel_button, 'button', 'focus button'),
@@ -160,7 +160,7 @@ class AddQuestionForm:
         option3 = self.edit_option3.edit_text.strip()
         option4 = self.edit_option4.edit_text.strip()
         # chequeo basico para no romperme la base
-        if not correct_answer or not option2 or not option3 or not option4 or not question_text:
+        if not all([question_text, correct_answer, option2, option3, option4]):
             self.message_widget.set_text(("Error: todos los campos son obligatorios"))
             return
         # elimino duplicados
@@ -169,15 +169,25 @@ class AddQuestionForm:
             self.message_widget.set_text(("Error: todas las opciones tienen que ser distintas"))
             return
         try:
-            self.db.add_question(question_text, correct_answer, option2, option3, option4, correct_answer)
-            self.message_widget.set_text(("Pregunta guardada con exito"))
+            success = self.db.add_question(question_text, correct_answer, option2, option3, option4, correct_answer)
+            if success:
+                self.message_widget.set_text(("Pregunta guardada con exito"))
+                self.edit_question.set_edit_text("")
+                self.edit_correct.edit_text("")
+                self.edit_option2.edit_text("")
+                self.edit_option3.edit_text("")
+                self.edit_option4.edit_text("")
             # mover el foco al primer campo despues de guardiar
-            self.main_widget.body.original_widget.set_focus(self.edit_question)
+                self.main_widget.body.original_widget.set_focus(self.edit_question)
+            else:
+                self.message_widget.set_text(("error","Error al guardar la pregunta en la db"))
         except Exception as e:
             self.message_widget.set_text(("Error",f"Error al guardar: {e}"))
     
     def unhandled_input(self, key):
-        # le puedo poner que pase algo con alguna tecla en particular, la dejo que haga nada
+        if key in ('q','Q'):
+            self.return_to_menu_callback()
+            return True
         return False
 
     def get_widget(self):

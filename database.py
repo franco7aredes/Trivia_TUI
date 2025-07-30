@@ -4,6 +4,7 @@ import random
 import os
 
 class TriviaDatabase:
+
 	def __init__(self, db_name='datos/triv.db'):
 		self.db_name = db_name
 		self.conn = None
@@ -66,7 +67,7 @@ class TriviaDatabase:
 			return
 		try:
 			self.cursor.execute('''
-				INSERT INTO preguntas(preg, op_a, op_b, op_c, op_d, res_correcta)
+				INSERT INTO preguntas(pregunta, opcion_a, opcion_b, opcion_c, opcion_d, correcta)
 				VALUES (?, ?, ?, ?, ?, ?)
 			''', (preg, op_a, op_b, op_c, op_d, res_correcta))
 			self.conn.commit()
@@ -79,7 +80,7 @@ class TriviaDatabase:
 			print("No hay conexion a DB, no se puede devolver las preguntas")
 			return []
 		try:
-			self.cursor.execute("SELECT preg, op_a, op_b, op_c, op_d , res_correcta FROM preguntas")
+			self.cursor.execute("SELECT pregunta, opcion_a, opcion_b, opcion_c, opcion_d ,correcta FROM preguntas")
 			rows = self.cursor.fetchall()
 			preguntas = []
 			for row in rows:
@@ -99,7 +100,7 @@ class TriviaDatabase:
 		if not all_questions:
 			print("No hay preguntas en la base de datos")
 			return []
-		if len(all_questions) <= count:
+		if len(all_questions) <= cantidad:
 			return all_questions
 		return random.sample(all_questions, cantidad)
 	
