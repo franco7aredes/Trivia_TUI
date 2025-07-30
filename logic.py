@@ -130,7 +130,7 @@ class AddQuestionForm:
         self.save_button = urwid.Button("Guardar")
         urwid.connect_signal(self.save_button, 'click', self._save_question)
         self.cancel_button = urwid.Button("Cancelar")
-        urwid.connect_signal(self.cancel_button, 'click', self.return_to_menu_callback)
+        urwid.connect_signal(self.cancel_button, 'click', lambda button: self.return_to_menu_callback)
         self.message_widget = urwid.Text("", align='center')
         # Organizar los widgets en un pile
         pile = urwid.Pile([
@@ -144,7 +144,6 @@ class AddQuestionForm:
             urwid.Divider(),
             urwid.AttrMap(self.save_button, 'button', 'focus button'),
             urwid.AttrMap(self.cancel_button, 'button', 'focus button'),
-            ("fixed", 1,self.message_widget),
         ])
         # Centrar el contenido y crear el Frame principal para la vista
         body_widget = urwid.Filler(pile, valign='middle')

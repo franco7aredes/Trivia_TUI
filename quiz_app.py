@@ -86,7 +86,7 @@ class Trivia:
 
     def add_question_form(self, button = None):
         form_instance = logic.AddQuestionForm(self.database, self.return_to_menu)
-        self.set_view(form_instance.get_widget(), form_instance)
+        self.set_view(form_instance.get_widget(), form_instance.unhandled_input)
 
 if __name__ == "__main__":
     app = Trivia()
